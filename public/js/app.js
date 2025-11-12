@@ -46,10 +46,11 @@ async function loadAPIs() {
     }
 }
 
-// Display APIs in table
+// Display APIs in table and cards
 function displayAPIs(apis) {
     const table = document.getElementById('apisTable');
     const tableBody = document.getElementById('apisTableBody');
+    const cardsContainer = document.getElementById('apisCards');
     const loadingMessage = document.getElementById('loadingMessage');
     const emptyMessage = document.getElementById('emptyMessage');
 
@@ -57,6 +58,7 @@ function displayAPIs(apis) {
 
     if (apis.length === 0) {
         table.classList.add('hidden');
+        if (cardsContainer) cardsContainer.innerHTML = '';
         emptyMessage.classList.remove('hidden');
         return;
     }
@@ -64,33 +66,35 @@ function displayAPIs(apis) {
     emptyMessage.classList.add('hidden');
     table.classList.remove('hidden');
     tableBody.innerHTML = '';
+    if (cardsContainer) cardsContainer.innerHTML = '';
 
     apis.forEach(api => {
-        const row = document.createElement('tr');
         const statusBadge = getStatusBadge(api.status);
         const connectionStatusBadge = getConnectionStatusBadge(api.connection_status);
         const lastChecked = api.last_checked 
             ? new Date(api.last_checked).toLocaleString() 
             : 'Never';
 
+        // Desktop table row
+        const row = document.createElement('tr');
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-gray-900">${escapeHtml(api.name)}</div>
                 ${api.description ? `<div class="text-sm text-gray-500">${escapeHtml(api.description)}</div>` : ''}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">${escapeHtml(api.endpoint)}</div>
+            <td class="px-4 lg:px-6 py-4">
+                <div class="text-sm text-gray-900 break-words max-w-xs">${escapeHtml(api.endpoint)}</div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                 ${statusBadge}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                 ${connectionStatusBadge}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 ${lastChecked}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <button onclick="checkConnection(${api.id})" 
                     class="text-indigo-600 hover:text-indigo-900 mr-3">Check</button>
                 <button onclick="editAPI(${api.id})" 
@@ -100,6 +104,55 @@ function displayAPIs(apis) {
             </td>
         `;
         tableBody.appendChild(row);
+
+        // Mobile card
+        if (cardsContainer) {
+            const card = document.createElement('div');
+            card.className = 'bg-white border border-gray-200 rounded-lg p-4 shadow-sm';
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-1">${escapeHtml(api.name)}</h3>
+                        ${api.description ? `<p class="text-sm text-gray-600 mb-2">${escapeHtml(api.description)}</p>` : ''}
+                    </div>
+                </div>
+                <div class="space-y-2 mb-4">
+                    <div>
+                        <span class="text-xs font-medium text-gray-500 uppercase">Endpoint</span>
+                        <p class="text-sm text-gray-900 break-all mt-1">${escapeHtml(api.endpoint)}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <div>
+                            <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Status</span>
+                            ${statusBadge}
+                        </div>
+                        <div>
+                            <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Connection</span>
+                            ${connectionStatusBadge}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-xs font-medium text-gray-500 uppercase">Last Checked</span>
+                        <p class="text-sm text-gray-600 mt-1">${lastChecked}</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 pt-3 border-t border-gray-200">
+                    <button onclick="checkConnection(${api.id})" 
+                        class="flex-1 px-3 py-2 text-sm bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 font-medium">
+                        Check
+                    </button>
+                    <button onclick="editAPI(${api.id})" 
+                        class="flex-1 px-3 py-2 text-sm bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 font-medium">
+                        Edit
+                    </button>
+                    <button onclick="deleteAPI(${api.id})" 
+                        class="flex-1 px-3 py-2 text-sm bg-red-50 text-red-600 rounded-md hover:bg-red-100 font-medium">
+                        Delete
+                    </button>
+                </div>
+            `;
+            cardsContainer.appendChild(card);
+        }
     });
 }
 
