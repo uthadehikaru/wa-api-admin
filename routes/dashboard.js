@@ -90,5 +90,25 @@ router.post('/apis/:id/check', async (req, res) => {
   }
 });
 
+// Get check logs for a specific API or all logs
+router.get('/logs', async (req, res) => {
+  try {
+    const apiId = req.query.apiId ? parseInt(req.query.apiId) : null;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 100;
+    
+    const logs = await db.getCheckLogs(apiId, limit);
+    
+    // Parse response_data JSON strings back to objects
+    const parsedLogs = logs.map(log => ({
+      ...log,
+      response_data: log.response_data ? JSON.parse(log.response_data) : null
+    }));
+    
+    res.json(parsedLogs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
 

@@ -97,6 +97,8 @@ function displayAPIs(apis) {
             <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <button onclick="checkConnection(${api.id})" 
                     class="text-indigo-600 hover:text-indigo-900 mr-3">Check</button>
+                <button onclick="viewLogs(${api.id}, '${escapeHtml(api.name)}')" 
+                    class="text-blue-600 hover:text-blue-900 mr-3">Logs</button>
                 <button onclick="editAPI(${api.id})" 
                     class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
                 <button onclick="deleteAPI(${api.id})" 
@@ -140,6 +142,10 @@ function displayAPIs(apis) {
                     <button onclick="checkConnection(${api.id})" 
                         class="flex-1 px-3 py-2 text-sm bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 font-medium">
                         Check
+                    </button>
+                    <button onclick="viewLogs(${api.id}, '${escapeHtml(api.name)}')" 
+                        class="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 font-medium">
+                        Logs
                     </button>
                     <button onclick="editAPI(${api.id})" 
                         class="flex-1 px-3 py-2 text-sm bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 font-medium">
@@ -321,5 +327,101 @@ async function checkConnection(id) {
         console.error('Error checking connection:', error);
         alert('Error checking connection');
     }
+}
+
+// View logs for an API
+let currentLogsApiId = null;
+
+async function viewLogs(apiId, apiName) {
+    currentLogsApiId = apiId;
+    document.getElementById('logsTitle').textContent = `Check Logs - ${apiName}`;
+    document.getElementById('logsModal').classList.remove('hidden');
+    document.getElementById('logsLoading').classList.remove('hidden');
+    document.getElementById('logsEmpty').classList.add('hidden');
+    document.getElementById('logsContent').classList.add('hidden');
+    
+    try {
+        const response = await fetch(`/logs?apiId=${apiId}&limit=100`);
+        const logs = await response.json();
+        
+        document.getElementById('logsLoading').classList.add('hidden');
+        
+        if (logs.length === 0) {
+            document.getElementById('logsEmpty').classList.remove('hidden');
+        } else {
+            displayLogs(logs);
+        }
+    } catch (error) {
+        console.error('Error loading logs:', error);
+        document.getElementById('logsLoading').classList.add('hidden');
+        document.getElementById('logsEmpty').textContent = 'Error loading logs';
+        document.getElementById('logsEmpty').classList.remove('hidden');
+    }
+}
+
+// Get Jenkins-style status indicator
+function getStatusIndicator(status, hasError) {
+    const isSuccess = status === 'online' && !hasError;
+    
+    if (isSuccess) {
+        // Green circle with checkmark (success)
+        return `
+            <div class="flex items-center justify-center" title="Success">
+                <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <circle cx="10" cy="10" r="9" fill="currentColor" opacity="0.2"/>
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" fill="currentColor"/>
+                </svg>
+            </div>
+        `;
+    } else {
+        // Red circle with X (failure)
+        return `
+            <div class="flex items-center justify-center" title="Failed">
+                <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <circle cx="10" cy="10" r="9" fill="currentColor" opacity="0.2"/>
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" fill="currentColor"/>
+                </svg>
+            </div>
+        `;
+    }
+}
+
+// Display logs in table
+function displayLogs(logs) {
+    const tableBody = document.getElementById('logsTableBody');
+    tableBody.innerHTML = '';
+    
+    logs.forEach(log => {
+        const statusBadge = getStatusBadge(log.status);
+        const connectionStatusBadge = getConnectionStatusBadge(log.connection_status);
+        const statusIndicator = getStatusIndicator(log.status, !!log.error_message);
+        const checkedAt = log.checked_at 
+            ? new Date(log.checked_at).toLocaleString() 
+            : '-';
+        const errorMessage = log.error_message ? escapeHtml(log.error_message) : '-';
+        const responseData = log.response_data 
+            ? `<pre class="text-xs bg-gray-50 p-2 rounded max-w-xs overflow-auto">${escapeHtml(JSON.stringify(log.response_data, null, 2))}</pre>` 
+            : '-';
+        
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        row.innerHTML = `
+            <td class="px-4 py-3 whitespace-nowrap text-center">${statusIndicator}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${checkedAt}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${connectionStatusBadge}</td>
+            <td class="px-4 py-3 text-sm text-gray-900 max-w-xs break-words">${errorMessage}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">${responseData}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+    
+    document.getElementById('logsContent').classList.remove('hidden');
+}
+
+// Close logs modal
+function closeLogsModal() {
+    document.getElementById('logsModal').classList.add('hidden');
+    currentLogsApiId = null;
 }
 

@@ -56,6 +56,20 @@ db.run(`ALTER TABLE whatsapp_apis ADD COLUMN connection_status TEXT`, (err) => {
   // Ignore error if column already exists
 });
 
+// Create check_logs table if it doesn't exist
+dbExec(`
+  CREATE TABLE IF NOT EXISTS check_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    api_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    connection_status TEXT,
+    response_data TEXT,
+    error_message TEXT,
+    checked_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (api_id) REFERENCES whatsapp_apis(id) ON DELETE CASCADE
+  )
+`).catch(err => console.error('Error creating check_logs table:', err));
+
 // Helper functions for database operations
 const dbHelpers = {
   getAll: async () => {
@@ -125,6 +139,40 @@ const dbHelpers = {
   getAllForCheck: async () => {
     try {
       return await dbAll('SELECT id, endpoint, token FROM whatsapp_apis');
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  insertCheckLog: async (apiId, status, connectionStatus = null, responseData = null, errorMessage = null) => {
+    try {
+      const checkedAt = new Date().toISOString();
+      // Convert responseData to JSON string if it's an object
+      const responseDataStr = responseData ? JSON.stringify(responseData) : null;
+      
+      await dbRun(
+        `INSERT INTO check_logs (api_id, status, connection_status, response_data, error_message, checked_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [apiId, status, connectionStatus, responseDataStr, errorMessage, checkedAt]
+      );
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getCheckLogs: async (apiId = null, limit = 100) => {
+    try {
+      if (apiId) {
+        return await dbAll(
+          'SELECT * FROM check_logs WHERE api_id = ? ORDER BY checked_at DESC LIMIT ?',
+          [apiId, limit]
+        );
+      } else {
+        return await dbAll(
+          'SELECT * FROM check_logs ORDER BY checked_at DESC LIMIT ?',
+          [limit]
+        );
+      }
     } catch (error) {
       throw error;
     }

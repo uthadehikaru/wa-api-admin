@@ -67,10 +67,18 @@ async function checkSingle(api) {
     
     await db.updateStatus(api.id, status, lastChecked, connectionStatus);
     
+    // Log the check
+    const errorMessage = lastError ? (lastError.message || String(lastError)) : null;
+    await db.insertCheckLog(api.id, status, connectionStatus, responseData, errorMessage);
+    
     return { success, status, lastChecked, connectionStatus, responseData };
   } catch (error) {
     const lastChecked = new Date().toISOString();
     await db.updateStatus(api.id, 'offline', lastChecked, null);
+    
+    // Log the error check
+    await db.insertCheckLog(api.id, 'offline', null, null, error.message || String(error));
+    
     throw error;
   }
 }
